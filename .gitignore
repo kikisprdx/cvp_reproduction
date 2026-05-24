@@ -2,3 +2,4 @@
 .git 
 .venv 
 .claude
+poetry.lock
