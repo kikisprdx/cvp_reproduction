@@ -1,0 +1,4 @@
+*.ju.py
+.git 
+.venv 
+.claude
