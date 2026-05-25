@@ -8,9 +8,14 @@ def get_data_loader_CIFAR10C(batch_size):
     return DataLoader(CIFAR10C(), batch_size=batch_size, shuffle=True)
 
 
-def get_data_loader_CIFAR10(batch_size, notebook=False):
+def get_data_loader_CIFAR10(batch_size, notebook=False, set='train'):
+    if set == 'train':
+        set = 1
+    else:
+        set = 0
     if notebook:
-        dataset = CIFAR10("../datasets/", download=True)
+        dataset = CIFAR10("../datasets/", download=True, train=set)
+        print(f"data length : {len(dataset)}")
     else:
         dataset = CIFAR10("datasets/", download=True)
     return DataLoader(dataset, batch_size=batch_size, shuffle=True)
