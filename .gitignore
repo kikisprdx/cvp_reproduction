@@ -3,4 +3,6 @@
 .venv 
 .claude
 poetry.lock
-*.ipynv_checkpoints
+**/.ipynb_checkpoints/
+__pycache__/
+datasets/
