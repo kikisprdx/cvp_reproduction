@@ -2,3 +2,5 @@
 .git 
 .venv 
 .claude
+poetry.lock
+*.ipynv_checkpoints
