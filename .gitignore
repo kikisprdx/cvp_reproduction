@@ -8,3 +8,4 @@ poetry.lock
 *.csv 
 __pycache__/
 datasets/
+notebooks/data/*.tar.gz
