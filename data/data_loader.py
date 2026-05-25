@@ -1,18 +1,21 @@
-from datasets import load_dataset
+from torch.utils.data import DataLoader, Dataset
+from data.data_utils import load_data
 
 
-def load_data():
-    dataset = load_dataset(
-        "randall-lab/cifar10-c", split="test", trust_remote_code=True
-    )
 
-    example = dataset[0]
-    image = example["image"]
-    label = example["label"]
+ 
+def get_data_loader(batch_size):
+    return DataLoader(CIFAR10C(), batch_size=batch_size, shuffle=True) 
 
-    image.show()
-    print(f"label", label)
+class CIFAR10C(Dataset):
+    def __init__(self):
+        self.ds = load_data()
 
+    def __len__(self):
+        return len(self.ds)
 
-if __name__ == "main":
-    load_data()
+    def __get_item__(self, idx):
+        item = self.ds[idx]
+        img = item["image"] 
+        return img, item["label"]
+
