@@ -4,5 +4,7 @@
 .claude
 poetry.lock
 **/.ipynb_checkpoints/
+*.parquet 
+*.csv 
 __pycache__/
 datasets/
