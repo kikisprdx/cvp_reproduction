@@ -4,8 +4,10 @@
 .claude
 poetry.lock
 **/.ipynb_checkpoints/
+notebooks/dataset.md
 *.parquet 
 *.csv 
 __pycache__/
 datasets/
 notebooks/data/*.tar.gz
+*.pth
