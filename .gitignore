@@ -10,3 +10,4 @@ notebooks/dataset.md
 __pycache__/
 datasets/
 notebooks/data/*.tar.gz
+*.pth
