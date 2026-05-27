@@ -5,6 +5,7 @@
 poetry.lock
 **/.ipynb_checkpoints/
 notebooks/dataset.md
+notebooks/train_resnet.md
 *.parquet 
 *.csv 
 __pycache__/
