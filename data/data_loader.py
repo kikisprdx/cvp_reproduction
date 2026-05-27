@@ -45,15 +45,15 @@ class CIFAR10CGenerated(Dataset):
     def __len__(self):
         return len(self.labels)
 
-    def __get_item__(self, idx):
-        img = Image.open(io.BytesIO(self.images[idx]))
+    def __getitem__(self, index):
+        img = Image.open(io.BytesIO(self.images[index]))
         if self.transform:
             img = self.transform(img)
         return (
             img,
-            self.labels[idx],
-            self.corruption_names[idx],
-            self.corruption_levels[idx],
+            self.labels[index],
+            self.corruption_names[index],
+            self.corruption_levels[index],
         )
 
 
@@ -64,7 +64,7 @@ class CIFAR10C(Dataset):
     def __len__(self):
         return len(self.ds)
 
-    def __get_item__(self, idx):
-        item = self.ds[idx]
+    def __getitem__(self, index):
+        item = self.ds[index]
         img = item["image"]
         return img, item["label"]
