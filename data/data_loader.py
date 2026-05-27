@@ -36,7 +36,7 @@ def get_data_loader_CIFAR10(batch_size, train=True, notebook=False, training=Tru
 class CIFAR10CGenerated(Dataset):
     def __init__(self, path, transform=None):
         df = pd.read_parquet(path)
-        self.images = df["images"].tolist()
+        self.images = df["image"].tolist()
         self.labels = df["label"].tolist()
         self.corruption_names = df["corruption_name"].tolist()
         self.corruption_levels = df["corruption_level"].tolist()

@@ -9,10 +9,9 @@ class SVPHead(nn.Module):
         super().__init__()
         # NOTE: Double check the resnet size
         self.linear_relu_stack = nn.Sequential(
-            nn.Linear(512, 512),
+            nn.Linear(2048, 512),
             nn.ReLU(),
         )
-
 
     def forward(self, x):
 
@@ -31,22 +30,28 @@ class SVP(nn.Module):
     def forward(self, x):
         x_hat = self.backbone(x)
         return self.head(x_hat)
-
     def loss(self, x, y: torch.Tensor, y_hat: torch.Tensor, tau):
         # y_i_j
-        floor = 1 if y_hat.unsqueeze(0).float() == y.unsqueeze(0).float() else 0
+        floor = (y.unsqueeze(1) == y.unsqueeze(0)).float()
+        # print(floor.size)
+        # print(x.size())
+        sim = x @ x.mT
+        # print("Cosine: ", sim[0])
+        # print("Cosine: ", sim.size())
+        num = sim / tau
+        # print("Tau: ", num[0])
+        # print("Tau: ", num.size())
+        num = torch.exp(num)
+        # print("Log: ", num[0])
+        # print("Log: ", num.size())
 
-        num = [
-            [F.cosine_similarity(x_i.unsqueeze(0), x_j.unsqueeze(0)) for x_j in x]
-            for x_i in x
-        ]
-        num = num / tau
+        den = x @ x.mT
+        # print("Cosine: ", sim.size())
+        den = torch.exp(den)
+        den = torch.sum(den / tau, 1)
+        # print("Log: ", den.size())
 
-        den = [
-            [F.cosine_similarity(x_i.unsqueeze(0), x_j.unsqueeze(0)) for x_j in x]
-            for x_i in x
-        ]
-        den = den / tau
-        den = torch.sum(den)
+        # print(floor.size(), num.size(), den.size())
+        diff = floor * torch.log(num / den)
 
-        return -(floor * (num - den.unsqueeze(1))).mean()
+        return -(diff).mean()
