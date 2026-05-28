@@ -1,3 +1,8 @@
+# FIX: SVPHead architecture should be Linear(512,128) -> BN(128) -> ReLU -> Linear(128,16)
+# FIX: floor/y_s should be built from view index not class label: labels = torch.cat([torch.arange(bs) for _ in range(n_views)], dim=0); y_s = (labels.unsqueeze(0) == labels.unsqueeze(1)).float()
+# FIX: den should exp first then sum: den = torch.exp(sim / tau).sum(dim=1), current order (sum then exp) is wrong
+# FIX: tau should be 0.2
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -35,6 +40,7 @@ class SVP(nn.Module):
         floor = (y.unsqueeze(1) == y.unsqueeze(0)).float()
         # print(floor.size)
         # print(x.size())
+        x = F.normalize(x, dim=1)
         sim = x @ x.mT
         # print("Cosine: ", sim[0])
         # print("Cosine: ", sim.size())
@@ -52,6 +58,6 @@ class SVP(nn.Module):
         # print("Log: ", den.size())
 
         # print(floor.size(), num.size(), den.size())
-        diff = floor * torch.log(num / den)
+        diff = floor * torch.log(num / den.unsqueeze(1))
 
-        return -(diff).mean()
+        return -(diff.sum() / floor.sum())
