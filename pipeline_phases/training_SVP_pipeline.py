@@ -4,7 +4,7 @@
 import os
 
 import torch
-
+import torch.nn as nn
 from models.SVP_model import SVP
 
 
@@ -56,4 +56,27 @@ class SVPTrainer:
         torch.save(self.model, self.best_model_path + "_entire.pth")
 
     def test_loop(self):
-        pass
+        criterion = nn.CrossEntropyLoss()
+
+        self.model.eval()
+        test_loss = 0 
+        correct = 0
+        total = 0
+
+        with torch.no_grad():
+            for data, labels in self.test_data:
+                output = self.model(data)
+                predictions = output.argmax(dim=1) 
+                loss = criterion(output, labels)
+
+                test_loss += loss.item() * labels.size(0)
+                correct += (predictions == labels).sum().item()
+
+                total += len(labels)
+
+        print(total)
+        accuracy = correct / total
+        print(f"accuracy : {accuracy}")
+
+        results = accuracy # placeholder for now (?)
+        return results
