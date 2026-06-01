@@ -6,7 +6,7 @@ import torch
 from data.data_loader import get_data_loader_CIFAR10, get_data_loader_CIFAR10C
 from models.SSL_model import SSL_model
 from models.SVP_model import SVP
-from pipeline_phases.training_SSL_pipeline import (
+from pipeline_phases.training_phases_manager import (
     testing_phase_prompting,
     testing_phase_standard,
     training_phase_SSL,
@@ -44,33 +44,40 @@ def setup_svp_eval():
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", choices=["training", "testing"], required=True)
+    parser.add_argument("--model", choices=["baseline", "CVP", "SVP", "FT"], default="baseline")
+    args = parser.parse_args()
+
+    resnet26 = load_resnet26_model()
     train_loader = get_data_loader_CIFAR10(batch_size=64)  # Clean data for SSL training
     test_loader = get_data_loader_CIFAR10C(
         batch_size=16
     )  # Corrupted data (Paper uses batch size 16 for testing it seems)
 
-    resnet26 = load_resnet26_model()
-
-    ssl_model = SSL_model(in_dim=2048, hidden=256, out_dim=128)
-
+    # if arg mode == training
     # train the SSL Model (Offline Phase): phase 1
-    print("----- SSL Training -----")
-    training_phase_SSL(resnet26, ssl_model, train_loader, epochs=200)
+    if args.mode == "training":
+        ssl_model = SSL_model(in_dim=2048, hidden=256, out_dim=128)
+        print("----- SSL Training -----")
+        training_phase_SSL(resnet26, ssl_model, train_loader, epochs=200)
 
-    # baseline : phase 2
-    print("----- Standard Baseline Evaluation -----")
-    standard_acc = testing_phase_standard(resnet26, test_loader)
-    print(f"Standard Accuracy on Corrupted Data: {standard_acc:.4f}")
+    elif args.mode == "testing":
+        # baseline : phase 2
+        # if arg mod == testing and model == baseline
+        if args.model == "baseline":
+            print("----- Standard Baseline Evaluation -----")
+            standard_acc = testing_phase_standard(resnet26, test_loader)
+            print(f"Standard Accuracy on Corrupted Data: {standard_acc:.4f}")
 
-    """
-    # test-time adaptation phase: phase 3
-    print("--- Starting Phase 3: CVP Prompting Evaluation ---")
-    ssl_model.load_state_dict(torch.load('models/ssl_weights.pth'))
-    cvp_acc = testing_phase_prompting(resnet26, ssl_model, test_loader)
-    print(f"CVP Accuracy on Corrupted Data: {cvp_acc:.4f}")
-
-    print(f"Total Accuracy Improvement: {(cvp_acc - standard_acc) * 100:.2f}%")
-    """
+        # else do it here:
+        else:
+            # test-time adaptation phase: phase 3
+            print("--- Starting Phase 3: CVP Prompting Evaluation ---")
+            ssl_model = SSL_model(in_dim=2048, hidden=256, out_dim=128)
+            ssl_model.load_state_dict(torch.load('models/ssl_weights.pth'))
+            cvp_acc = testing_phase_prompting(resnet26, ssl_model, test_loader, method=args.model)
+            print(f"CVP Accuracy on Corrupted Data: {cvp_acc:.4f}")
 
 
 if __name__ == "__main__":

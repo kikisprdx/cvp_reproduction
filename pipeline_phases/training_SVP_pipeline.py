@@ -35,7 +35,11 @@ class SVPTrainer:
 
     def train(self, batch_size):
         self.model.train()
-
+        # CVP: 
+        # For every single x, it creates 2 
+        # possibly augmented version of x 
+        # does this for every batch 
+        # -> model evaluates on this 
         for batch, (X, y) in enumerate(self.training_data):
             # Multi view augmentation
             views = torch.cat([self.transforms(X) for _ in range(self.n_views)], dim=0)
@@ -55,7 +59,7 @@ class SVPTrainer:
         torch.save(self.model.state_dict(), self.best_model_path + ".pth")
         torch.save(self.model, self.best_model_path + "_entire.pth")
 
-    def test_loop(self):
+    def test_loop(self, base_model, adapt_iters=5):
         criterion = nn.CrossEntropyLoss()
 
         self.model.eval()

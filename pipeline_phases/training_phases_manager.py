@@ -1,18 +1,18 @@
-from models.SSL_model import SSL_model
 import torch
 import torch.nn as nn
 import numpy as np
 from tqdm import tqdm
 import torch.optim as optim
-import torchvision.transforms as T
-import torch.nn.functional as F
-import numpy as np
-from train_svp import SVPTrainer
+from torchvision import transforms
+
+from data.data_loader import get_data_loader_CIFAR10
+from models.SVP_model import SVP
+from pipeline_phases.training_SVP_pipeline import SVPTrainer
 from utils import ssl_transform, contrastive_loss
 from adapters.FT_trainer import FTTrainer
 
 def training_phase_SSL(base_model, ssl_model, train_loader, epochs=200):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     ssl_model = ssl_model.to(device)
     base_model = base_model.to(device)
     
@@ -90,7 +90,7 @@ def training_phase_SSL(base_model, ssl_model, train_loader, epochs=200):
 
 '''
 def training_phase_SSL(base_model, ssl_model, train_loader, optimizer, epochs=100):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     ssl_model = ssl_model.to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.AdamW(ssl_model.parameters(), lr=0.001, weight_decay=1e-4)
@@ -183,17 +183,41 @@ def testing_phase_standard(base_model, test_loader):
     results = accuracy # placeholder for now (?)
     return results
 
+
+
 def testing_phase_prompting(base_model, ssl_model, test_loader, method='CVP', adapt_iters=5):
     print(f"Preparing test-time adaptation for {method}!\n")
 
     if method == 'CVP':
-        trainer = SVPTrainer( #CVPTrainer
-            model=ssl_model, test_data=test_loader, transforms=ssl_transform, n_views=3
+        #TODO: Check if best model exists otherwise continue
+        base_model.reset_classifier(0)
+        base_model.eval()
+        svp_model = SVP(base_model)
+
+        size = 32
+        color_jitter = transforms.ColorJitter(0.8, 0.8, 0.8, 0.2)
+        data_transforms = transforms.Compose(
+            [
+                transforms.RandomResizedCrop(size=size),
+                transforms.RandomHorizontalFlip(),
+                transforms.RandomApply([color_jitter], p=0.8),
+                transforms.RandomGrayscale(p=0.2),
+                transforms.GaussianBlur(kernel_size=3),
+            ]
         )
+        train_data = get_data_loader_CIFAR10(batch_size=512)
+        optimiser = torch.optim.Adam(svp_model.parameters(), lr=1e-4)
+        trainer = SVPTrainer(svp_model, optimiser, train_data, test_loader, transforms=data_transforms)
+
+        for t in range(200):
+            print(f"Epoch {t + 1}\n", "-" * 10)
+            trainer.train(512)
+
     elif method == 'SVP':
-        trainer = SVPTrainer(
-            model=ssl_model, test_data=test_loader, transforms=ssl_transform, n_views=3
-        )
+        pass
+        # trainer = SVPTrainer( #CVPTrainer
+        #     model=ssl_model, test_data=test_loader, transforms=ssl_transform, n_views=3
+        # )
     elif method == 'FT':
         trainer = FTTrainer(
             model=ssl_model, test_data=test_loader, transforms=ssl_transform, n_views=3
