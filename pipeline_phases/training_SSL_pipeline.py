@@ -7,6 +7,14 @@ import torch.optim as optim
 import torchvision.transforms as T
 import torch.nn.functional as F
 import numpy as np
+from train_svp import SVPTrainer
+
+# the augmentations specified by the paper 
+ssl_transform = T.Compose([
+    T.RandomResizedCrop(32, antialias=True),
+    T.RandomHorizontalFlip(),
+    T.RandomRotation(degrees=[-90, 90])
+])
 
 def contrastive_loss(features, batch_size, n_views=3, temperature=0.1):
     """Implementation of Equation 1 from the paper."""
@@ -54,13 +62,6 @@ def training_phase_SSL(base_model, ssl_model, train_loader, epochs=200): # Epoch
     patience = 5 #idk
     best_loss = np.inf
     counter = 0
-
-    # The exact augmentations specified by the paper 
-    ssl_transform = T.Compose([
-        T.RandomResizedCrop(32, antialias=True),
-        T.RandomHorizontalFlip(),
-        T.RandomRotation(degrees=[-90, 90])
-    ])
 
     ssl_model.train()
     base_model.eval()
@@ -218,5 +219,24 @@ def testing_phase_standard(base_model, test_loader):
     results = accuracy # placeholder for now (?)
     return results
 
-def testing_phase_prompting(base_model, ssl_model, test_loader, method='CVP', epochs=5):
-    pass
+def testing_phase_prompting(base_model, ssl_model, test_loader, method='CVP', adapt_iters=5):
+    print(f"Preparing test-time adaptation for {method}!\n")
+
+    if method == 'CVP':
+        trainer = SVPTrainer( #CVPTrainer
+            model=ssl_model, test_data=test_loader, transforms=ssl_transform, n_views=3
+        )
+    elif method == 'SVP':
+        trainer = SVPTrainer(
+            model=ssl_model, test_data=test_loader, transforms=ssl_transform, n_views=3
+        )
+    elif method == 'FT':
+        trainer = SVPTrainer( # change to FTTrainer
+            model=ssl_model, test_data=test_loader, transforms=ssl_transform, n_views=3
+        )
+    else:
+        raise ValueError(f"Unknown method: {method}")
+
+    accuracy = trainer.test_loop(base_model, adapt_iters=adapt_iters) # maybe rename function to adaptation_run or sth
+
+    return accuracy
