@@ -11,7 +11,8 @@ from data.data_utils import load_data
 
 
 def get_data_loader_CIFAR10C(batch_size):
-    return DataLoader(CIFAR10C(), batch_size=batch_size, shuffle=True)
+    transform = v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)])
+    return DataLoader(CIFAR10C(transform=transform), batch_size=batch_size, shuffle=True)
 
 
 def get_data_loader_CIFAR10C_generated(path, batch_size):
@@ -58,8 +59,9 @@ class CIFAR10CGenerated(Dataset):
 
 
 class CIFAR10C(Dataset):
-    def __init__(self):
+    def __init__(self, transform=None):
         self.ds = load_data()
+        self.transform = transform
 
     def __len__(self):
         return len(self.ds)
@@ -67,4 +69,8 @@ class CIFAR10C(Dataset):
     def __getitem__(self, index):
         item = self.ds[index]
         img = item["image"]
+
+        if self.transform:
+            img = self.transform(img)
+            
         return img, item["label"]

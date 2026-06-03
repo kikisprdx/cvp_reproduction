@@ -1,44 +1,48 @@
 import torch
-import torch.nn.functional as F
+import torch.nn as nn
 import copy
 from tqdm import tqdm
 from utils import contrastive_loss
 from adapters.base_adapter import BaseTrainer
 
-class FTTrainer(BaseTrainer):
+class PFTTrainer(BaseTrainer):
 
-    def test_loop(self, base_model, adapt_iters=5):
+    def test_loop(self, base_model: nn.Module, adapt_iters: int = 5):
         base_model = base_model.to(self.device)
         
-        #SSL model is frozen during test-time adaptation
-        self.ssl_model.eval()
+        self.ssl_model.eval() # ssl frozen 
         for param in self.ssl_model.parameters():
             param.requires_grad = False
 
         correct = 0
         total = 0
 
-        loop = tqdm(self.test_data, desc="Test-Time Adaptation (FT)")
+        loop = tqdm(self.test_data, desc="Test-Time Adaptation (PFT)")
         
         for inputs, labels in loop:
             inputs, labels = inputs.to(self.device), labels.to(self.device)
             batch_size = inputs.size(0)
 
-            # deepcopy the state per batch so always revert back to the exact same pre-trained starting point
-            initial_model_state = copy.deepcopy(base_model.state_dict())
+            initial_model_state = copy.deepcopy(base_model.state_dict()) # deep copy to revert like FT method
 
-            # unfreeze the base model for fine-tuning
             base_model.train()
-            for param in base_model.parameters():
-                param.requires_grad = True
             
-            optimizer = torch.optim.Adam(base_model.parameters(), lr=1e-4)
+            for param in base_model.parameters():
+                param.requires_grad = False
+                
+            # ufreeze only the batchnorm layers
+            for module in base_model.modules():
+                if isinstance(module, nn.BatchNorm2d):
+                    for param in module.parameters():
+                        param.requires_grad = True
+            
+            # give the optimizer the parameters that require gradients -> batchnorm
+            trainable_params = filter(lambda p: p.requires_grad, base_model.parameters())
+            optimizer = torch.optim.Adam(trainable_params, lr=1e-4)
 
-            #adaptation time
-            for t in range(adapt_iters):
+            for t in range(adapt_iters): # adaptation 
                 optimizer.zero_grad()
                 
-                # generate views of the UNALTERED corrupted image 
                 views = [self.transforms(inputs) for _ in range(self.n_views)]
                 stacked_views = torch.cat(views, dim=0)
                 
@@ -51,22 +55,20 @@ class FTTrainer(BaseTrainer):
                 
                 loss.backward()
                 optimizer.step()
-            
-            #back to eval mode for deterministic inference
-            base_model.eval()
+
+            base_model.eval() # now inference
             with torch.no_grad():
-                # get predictions on the original corrupted inputs
                 outputs = base_model(inputs)
                 predictions = outputs.argmax(dim=1)
                 
                 correct += (predictions == labels).sum().item()
                 total += labels.size(0)
 
-            # remove the fine-tuning for the next batch (???)
-            base_model.load_state_dict(initial_model_state)
+
+            base_model.load_state_dict(initial_model_state) # reset
             
             loop.set_postfix(acc=f"{correct/total:.4f}")
 
         accuracy = correct / total
-        print(f"Final FT Accuracy: {accuracy:.4f}")
+        print(f"Final PFT Accuracy: {accuracy:.4f}")
         return accuracy
