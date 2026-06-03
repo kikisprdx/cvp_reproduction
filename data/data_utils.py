@@ -1,4 +1,5 @@
-from datasets import load_dataset, Value, ClassLabel
+from datasets import ClassLabel, Value, load_dataset
+
 
 def load_data():
     dataset = load_dataset("robro/cifar10-c-parquet", split="train")

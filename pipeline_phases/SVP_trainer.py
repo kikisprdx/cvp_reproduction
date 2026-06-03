@@ -1,3 +1,4 @@
+
 # FIX: missing multi-view augmentation — generate n_views random crops of X and cat before passing to model
 # FIX: backbone should stay in model.eval(), only head should be in train mode
 
@@ -6,6 +7,7 @@ import os
 import torch
 import torch.nn as nn
 from models.SVP_model import SVP
+from utils import contrastive_loss
 
 
 class SVPTrainer:
@@ -35,7 +37,7 @@ class SVPTrainer:
 
     def train(self, batch_size):
         self.model.train()
-        # CVP: 
+        # SVP: 
         # For every single x, it creates 2 
         # possibly augmented version of x 
         # does this for every batch 
@@ -43,8 +45,8 @@ class SVPTrainer:
         for batch, (X, y) in enumerate(self.training_data):
             # Multi view augmentation
             views = torch.cat([self.transforms(X) for _ in range(self.n_views)], dim=0)
-            pred = self.model(X)
-            loss = self.model.loss(pred, y, pred, self.tau)
+            pred = self.model(views)
+            loss = contrastive_loss(pred, X.size(0), n_views=self.n_views)
 
             loss.backward()
             self.optimiser.step()

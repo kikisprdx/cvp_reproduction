@@ -11,7 +11,6 @@ from pipeline_phases.training_phases_manager import (
     testing_phase_standard,
     training_phase_SSL,
 )
-from pipeline_phases.training_SVP_pipeline import SVPTrainer
 
 
 def load_resnet26_model():
@@ -46,7 +45,9 @@ def setup_svp_eval():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=["training", "testing"], required=True)
-    parser.add_argument("--model", choices=["baseline", "CVP", "SVP", "FT"], default="baseline")
+    parser.add_argument(
+        "--model", choices=["baseline", "CVP", "SVP", "FT"], default="baseline"
+    )
     args = parser.parse_args()
 
     resnet26 = load_resnet26_model()
@@ -75,8 +76,10 @@ def main():
             # test-time adaptation phase: phase 3
             print("--- Starting Phase 3: CVP Prompting Evaluation ---")
             ssl_model = SSL_model(in_dim=2048, hidden=256, out_dim=128)
-            ssl_model.load_state_dict(torch.load('models/ssl_weights.pth'))
-            cvp_acc = testing_phase_prompting(resnet26, ssl_model, test_loader, method=args.model)
+            ssl_model.load_state_dict(torch.load("models/ssl_weights.pth"))
+            cvp_acc = testing_phase_prompting(
+                resnet26, ssl_model, test_loader, method=args.model
+            )
             print(f"CVP Accuracy on Corrupted Data: {cvp_acc:.4f}")
 
 
