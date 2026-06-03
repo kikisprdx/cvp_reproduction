@@ -6,12 +6,9 @@ import torch
 from data.data_loader import get_data_loader_CIFAR10, get_data_loader_CIFAR10C
 from models.SSL_model import SSL_model
 from models.SVP_model import SVP
-from pipeline_phases.training_phases_manager import (
-    testing_phase_prompting,
-    testing_phase_standard,
-    training_phase_SSL,
-)
-from pipeline_phases.training_SVP_pipeline import SVPTrainer
+from pipeline_phases.training_phases_manager import (testing_phase_prompting,
+                                                     testing_phase_standard,
+                                                     training_phase_SSL)
 
 
 def load_resnet26_model():
