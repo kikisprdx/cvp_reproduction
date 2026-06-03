@@ -1,4 +1,3 @@
-
 # FIX: missing multi-view augmentation — generate n_views random crops of X and cat before passing to model
 # FIX: backbone should stay in model.eval(), only head should be in train mode
 
@@ -6,6 +5,7 @@ import os
 
 import torch
 import torch.nn as nn
+
 from models.SVP_model import SVP
 from utils import contrastive_loss
 
@@ -37,11 +37,11 @@ class SVPTrainer:
 
     def train(self, batch_size):
         self.model.train()
-        # SVP: 
-        # For every single x, it creates 2 
-        # possibly augmented version of x 
-        # does this for every batch 
-        # -> model evaluates on this 
+        # SVP:
+        # For every single x, it creates 2
+        # possibly augmented version of x
+        # does this for every batch
+        # -> model evaluates on this
         for batch, (X, y) in enumerate(self.training_data):
             # Multi view augmentation
             views = torch.cat([self.transforms(X) for _ in range(self.n_views)], dim=0)
@@ -65,14 +65,14 @@ class SVPTrainer:
         criterion = nn.CrossEntropyLoss()
 
         self.model.eval()
-        test_loss = 0 
+        test_loss = 0
         correct = 0
         total = 0
-
+        # TODO: TQDM so i know what's going on and current stats
         with torch.no_grad():
             for data, labels in self.test_data:
                 output = self.model(data)
-                predictions = output.argmax(dim=1) 
+                predictions = output.argmax(dim=1)
                 loss = criterion(output, labels)
 
                 test_loss += loss.item() * labels.size(0)
@@ -84,5 +84,5 @@ class SVPTrainer:
         accuracy = correct / total
         print(f"accuracy : {accuracy}")
 
-        results = accuracy # placeholder for now (?)
+        results = accuracy  # placeholder for now (?)
         return results

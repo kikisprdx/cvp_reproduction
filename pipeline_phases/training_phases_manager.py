@@ -138,6 +138,7 @@ def testing_phase_prompting(base_model, ssl_model, test_loader, method, adapt_it
     optimiser = torch.optim.Adam(svp_model.parameters(), lr=1e-4)
 
     if method == "CVP":
+        # If trainer is returned, use it to do the test
         trainer = train_cvp(ssl_model, base_model, train_data, test_loader)
     elif method == "SVP":
         trainer = train_svp(size, svp_model, optimiser, train_data, test_loader)

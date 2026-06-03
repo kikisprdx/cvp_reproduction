@@ -72,7 +72,7 @@ class CVPTrainer:
         # torch.save(self.model.state_dict(), self.best_model_path + ".pth")
         # torch.save(self.model, self.best_model_path + "_entire.pth")
 
-    def test_loop(self, base_model, adapt_iters=5, lam=0.5):
+    def test_loop(self, adapt_iters=5, lam=0.5):
         criterion = nn.CrossEntropyLoss()
 
         self.model.eval()
