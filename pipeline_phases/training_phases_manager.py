@@ -10,6 +10,7 @@ from models.SVP_model import SVP
 from pipeline_phases.training_SVP_pipeline import SVPTrainer
 from utils import ssl_transform, contrastive_loss
 from adapters.FT_trainer import FTTrainer
+from adapters.PFT_trainer import PFTTrainer
 
 def training_phase_SSL(base_model, ssl_model, train_loader, epochs=200):
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -124,7 +125,7 @@ def testing_phase_standard(base_model, test_loader):
 
 
 
-def testing_phase_prompting(base_model, ssl_model, test_loader, method='CVP', adapt_iters=5):
+def testing_phase_prompting(base_model, ssl_model, test_loader, method, adapt_iters=5):
     print(f"Preparing test-time adaptation for {method}!\n")
 
     if method == 'CVP':
@@ -157,8 +158,12 @@ def testing_phase_prompting(base_model, ssl_model, test_loader, method='CVP', ad
         # trainer = SVPTrainer( #CVPTrainer
         #     model=ssl_model, test_data=test_loader, transforms=ssl_transform, n_views=3
         # )
-    elif method == 'FT':
+    elif method == 'FT': # slow approx. 8h
         trainer = FTTrainer(
+            model=ssl_model, test_data=test_loader, transforms=ssl_transform, n_views=3
+        )
+    elif method == 'PFT': # much faster than FT
+        trainer = PFTTrainer(
             model=ssl_model, test_data=test_loader, transforms=ssl_transform, n_views=3
         )
     else:

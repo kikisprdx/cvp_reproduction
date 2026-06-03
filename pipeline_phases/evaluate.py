@@ -46,7 +46,7 @@ def setup_svp_eval():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=["training", "testing"], required=True)
-    parser.add_argument("--model", choices=["baseline", "CVP", "SVP", "FT"], default="baseline")
+    parser.add_argument("--model", choices=["baseline", "CVP", "SVP", "FT", "PFT"], default="baseline")
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -78,8 +78,8 @@ def main():
             print(f"--- Starting Phase 3: {args.model} Prompting Evaluation ---")
             ssl_model = SSL_model(in_dim=2048, hidden=256, out_dim=128)
             ssl_model.load_state_dict(torch.load('models/ssl_weights.pth', map_location=device))
-            cvp_acc = testing_phase_prompting(resnet26, ssl_model, test_loader, method=args.model)
-            print(f"CVP Accuracy on Corrupted Data: {cvp_acc:.4f}")
+            method_acc = testing_phase_prompting(resnet26, ssl_model, test_loader, method=args.model)
+            print(f"{args.model} Accuracy on Corrupted Data: {method_acc:.4f}")
 
 
 if __name__ == "__main__":
