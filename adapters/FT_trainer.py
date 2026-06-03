@@ -3,20 +3,9 @@ import torch.nn.functional as F
 import copy
 from tqdm import tqdm
 from utils import contrastive_loss
+from adapters.base_adapter import BaseTrainer
 
-class FTTrainer:
-    def __init__(self, model, test_data, transforms, n_views=3):
-        """
-        model: the pre-trained SSL MLP model
-        test_data: dataLoader for the corrupted test dataset
-        transforms: the SSL transformations (crop, flip, rotate)
-        """
-        self.ssl_model = model
-        self.test_data = test_data
-        self.transforms = transforms
-        self.n_views = n_views
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.ssl_model = self.ssl_model.to(self.device)
+class FTTrainer(BaseTrainer):
 
     def test_loop(self, base_model, adapt_iters=5):
         base_model = base_model.to(self.device)

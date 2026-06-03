@@ -88,70 +88,7 @@ def training_phase_SSL(base_model, ssl_model, train_loader, epochs=200):
             print(f"Early stopping triggered at epoch {epoch+1}")
             break
 
-'''
-def training_phase_SSL(base_model, ssl_model, train_loader, optimizer, epochs=100):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    ssl_model = ssl_model.to(device)
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.AdamW(ssl_model.parameters(), lr=0.001, weight_decay=1e-4)
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
-    best_model_path = 'models/best_resnet26.pth'
-    ssl_model_path = 'models/'
 
-    patience = 3
-    best_loss = np.inf
-    counter = 0
-
-    simclr_transform = T.Compose([
-    T.RandomResizedCrop(32),
-    T.RandomHorizontalFlip(),
-    T.RandomApply([T.ColorJitter(0.4,0.4,0.4,0.1)], p=0.8),
-    T.RandomGrayscale(p=0.2),
-    T.GaussianBlur(kernel_size=3),
-    T.ToTensor(),
-    T.Normalize((0.4914, 0.4822, 0.4465), (0.247, 0.243, 0.261))
-])
-
-    ssl_model.train()
-    base_model.eval()
-    for param in base_model.parameters():
-        param.requires_grad = False
-    
-    for epoch in tqdm(range(epochs)):
-
-        running_loss = 0.0
-        
-        for inputs, labels in train_loader:
-            inputs, labels = inputs.to(device), labels.to(device)
-            
-            optimizer.zero_grad()
-            logits = base_model(inputs)
-            outputs = ssl_model(logits)
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
-            
-            running_loss += loss.item()
-            
-        scheduler.step()
-        
-        current_lr = scheduler.get_last_lr()[0]
-        average_loss = running_loss / len(train_loader)
-        
-        print(f"epoch {epoch+1}/{epochs} - loss: {average_loss:.4f} | LR: {current_lr:.6f}")
-        if average_loss < best_loss:
-            best_loss = average_loss
-            counter = 0
-
-            torch.save(ssl_model.state_dict(), ssl_model_path) # model weights only
-            torch.save(ssl_model, 'ssl_best_model.pth') # model
-            print(">> Saved new best ssl model!")
-        else:
-            counter +=1
-        
-        if counter >= patience:
-            break
-'''
 
 
 def testing_phase_standard(base_model, test_loader):
@@ -182,6 +119,8 @@ def testing_phase_standard(base_model, test_loader):
     # make summary structure to contain results and return them
     results = accuracy # placeholder for now (?)
     return results
+
+
 
 
 
