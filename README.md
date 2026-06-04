@@ -1,7 +1,48 @@
-# cvp_reproduction
+# CVP Reproduction
 
-SVP:
-# The self-supervised visual prompts attempt to reverse the adversarial attacks by modifying the input pixels with ℓp-norm perturbations, where the perturbations are optimized via contrastive loss [ 40 ]. For the patch setting, we setup the shape of VP as 32*32*3 for CIFAR-C and 224*224*3 for all ImageNet OOD datasets. For the padding setting, we set the padding size as 1 for CIFAR-10-C and 15 for ImageNet OOD dataset. Take CIFAR data as example, we first initialize a mask with all zeros value with the shape 30*30*3 and set the pad value as 1 with padding size 1 so that the mask after padding is as the same shape of CIFAR data (32*32*3). Then, we multiply the mask with the VP to preserve only the VP located at the position we just pad with 1 value. We can further optimize the VP with mask by adding it with the corrupted samples
-dversarial attacks are reversible with natural supervision
+Reproduction of Contrastive Visual Prompting (CVP) and related test-time adaptation methods on CIFAR-10-C.
 
-unordered list 
+## Setup
+
+```bash
+poetry install
+```
+
+## Usage
+
+### Phase 1 — SSL pretraining (offline)
+
+Trains the SSL MLP head on clean CIFAR-10 using contrastive loss. Saves weights to `models/ssl_weights.pth`.
+
+```bash
+poetry run python -m pipeline_phases.evaluate --mode training
+```
+
+### Phase 2 — Baseline evaluation
+
+Evaluates the frozen ResNet-26 directly on corrupted CIFAR-10-C (no adaptation).
+
+```bash
+poetry run python -m pipeline_phases.evaluate --mode testing --model baseline
+```
+
+### Phase 3 — Test-time adaptation
+
+```bash
+# CVP
+poetry run python -m pipeline_phases.evaluate --mode testing --model CVP
+
+# SVP
+poetry run python -m pipeline_phases.evaluate --mode testing --model SVP
+
+# Fine-tuning
+poetry run python -m pipeline_phases.evaluate --mode testing --model FT
+```
+
+SVP checkpoints to `models/svp/svp_entire.pth` after training — subsequent runs load it automatically.
+
+## Models
+
+- `models/best_resnet26.pth` — pretrained ResNet-26 backbone (required, not included)
+- `models/ssl_weights.pth` — SSL MLP head weights (produced by phase 1)
+- `models/svp/svp_entire.pth` — SVP model (produced by SVP test-time run)

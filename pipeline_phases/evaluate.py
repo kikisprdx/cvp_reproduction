@@ -1,3 +1,4 @@
+# TODO: add a result collector that logs method, accuracy, and any relevant hyperparams to a csv after each run
 import argparse
 
 import timm

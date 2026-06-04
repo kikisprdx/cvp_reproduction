@@ -36,7 +36,8 @@ def train_svp(size, svp_model, optimiser, train_data, test_loader):
 
 
 # TODO: Handle variable kernels please
-def train_cvp(ssl_model, base_model, train_data, test_loader, optimiser):
-    cvp_model = CVP(base_model, 3, ssl_model)
+def train_cvp(ssl_model, base_model, train_data, test_loader):
+    cvp_model = CVP(base_model, 128, ssl_model)
+    optimiser = torch.optim.Adam(cvp_model.head.parameters(), lr=1e-4)
     trainer = CVPTrainer(cvp_model, optimiser, train_data, test_loader, 0.2)
     return trainer
