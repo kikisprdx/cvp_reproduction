@@ -19,8 +19,9 @@ def train_svp(size, svp_model, optimiser, train_data, test_loader):
             transforms.GaussianBlur(kernel_size=3),
         ]
     )
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimiser, T_max=200)
     trainer = SVPTrainer(
-        svp_model, optimiser, train_data, test_loader, transforms=data_transforms
+        svp_model, optimiser, train_data, test_loader, transforms=data_transforms, scheduler=scheduler
     )
 
     checkpoint = "models/svp/svp_entire.pth"
