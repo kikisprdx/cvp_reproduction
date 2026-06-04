@@ -1,5 +1,7 @@
-# TODO: add a result collector that logs method, accuracy, and any relevant hyperparams to a csv after each run
 import argparse
+import csv
+import os
+from datetime import datetime
 
 import timm
 import torch
@@ -10,6 +12,21 @@ from models.SVP_model import SVP
 from pipeline_phases.training_phases_manager import (testing_phase_prompting,
                                                      testing_phase_standard,
                                                      training_phase_SSL)
+
+
+_RESULTS_PATH = "results/results.csv"
+_FIELDS = ["timestamp", "model", "accuracy", "adapt_iters", "tau", "lam", "n_views"]
+
+
+def log_result(model, accuracy, **kwargs):
+    row = {"timestamp": datetime.utcnow().isoformat(), "model": model, "accuracy": round(accuracy, 6)}
+    row.update({k: kwargs.get(k) for k in _FIELDS[3:]})
+    write_header = not os.path.exists(_RESULTS_PATH)
+    with open(_RESULTS_PATH, "a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=_FIELDS)
+        if write_header:
+            writer.writeheader()
+        writer.writerow(row)
 
 
 def load_resnet26_model():
@@ -69,6 +86,7 @@ def main():
             print("----- Standard Baseline Evaluation -----")
             standard_acc = testing_phase_standard(resnet26, test_loader)
             print(f"Standard Accuracy on Corrupted Data: {standard_acc:.4f}")
+            log_result("baseline", standard_acc)
 
         # else do it here:
         else:
@@ -78,6 +96,14 @@ def main():
             ssl_model.load_state_dict(torch.load('models/ssl_weights.pth', map_location=device))
             method_acc = testing_phase_prompting(resnet26, ssl_model, test_loader, method=args.model)
             print(f"{args.model} Accuracy on Corrupted Data: {method_acc:.4f}")
+            hp = {"adapt_iters": 5}
+            if args.model in ("CVP", "SVP"):
+                hp["tau"] = 0.2
+            if args.model == "CVP":
+                hp["lam"] = 0.5
+            if args.model in ("SVP", "FT", "PFT"):
+                hp["n_views"] = 2 if args.model == "SVP" else 3
+            log_result(args.model, method_acc, **hp)
 
 
 if __name__ == "__main__":
