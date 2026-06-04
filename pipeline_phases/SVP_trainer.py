@@ -46,7 +46,7 @@ class SVPTrainer:
             # Multi view augmentation
             views = torch.cat([self.transforms(X) for _ in range(self.n_views)], dim=0)
             pred = self.model(views)
-            loss = contrastive_loss(pred, X.size(0), n_views=self.n_views)
+            loss = contrastive_loss(pred, X.size(0), n_views=self.n_views, temperature=self.tau)
 
             loss.backward()
             self.optimiser.step()
