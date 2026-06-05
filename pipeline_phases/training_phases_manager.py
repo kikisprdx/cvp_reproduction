@@ -103,10 +103,10 @@ def testing_phase_standard(base_model, test_loader):
     correct = 0
     total = 0
 
+    loop = tqdm(test_loader, desc="baseline test")
     with torch.no_grad():
-        for data, labels in test_loader:
+        for data, labels in loop:
             output = base_model(data)  # model already outputs the raw logits
-            # print(output.shape)
             predictions = output.argmax(
                 dim=1
             )  # this step is bascially the classifer in appendix 7.1
@@ -114,10 +114,10 @@ def testing_phase_standard(base_model, test_loader):
 
             test_loss += loss.item() * labels.size(0)
             correct += (predictions == labels).sum().item()
-
             total += len(labels)
 
-    print(total)
+            loop.set_postfix(loss=loss.item(), err=1 - correct / total)
+
     accuracy = correct / total
     print(f"accuracy : {accuracy}")
 
@@ -129,10 +129,14 @@ def testing_phase_standard(base_model, test_loader):
 def testing_phase_prompting(base_model, ssl_model, test_loader, method, adapt_iters=5):
     print(f"Preparing test-time adaptation for {method}!\n")
 
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     # NOTE: I think all of these steps will be needed for all paths:
     base_model.reset_classifier(0)
+    base_model.to(device)
     base_model.eval()
     svp_model = SVP(base_model)
+    svp_model.to(device)
     size = 32
     train_data = get_data_loader_CIFAR10(batch_size=512)
     optimiser = torch.optim.Adam(svp_model.parameters(), lr=1e-4)

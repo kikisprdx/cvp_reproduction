@@ -40,8 +40,14 @@ class SVPTrainer:
         self.model.train()
         self.model.backbone.eval()
 
+        # SVP:
+        # For every single x, it creates 2
+        # possibly augmented version of x
+        # does this for every batch
+        # -> model evaluates on this
         loop = tqdm(self.training_data, desc="SVP train")
         for X, y in loop:
+            # Multi view augmentation
             views = torch.cat([self.transforms(X) for _ in range(self.n_views)], dim=0)
             pred = self.model(views)
             loss = contrastive_loss(pred, X.size(0), n_views=self.n_views, temperature=self.tau)
@@ -61,12 +67,14 @@ class SVPTrainer:
         assert self.transforms is not None, "transforms required for test-time adaptation"
         base_model.reset_classifier(10)
         criterion = nn.CrossEntropyLoss()
+        device = self.model.prompt.device
 
         correct = 0
         total = 0
         test_loss = 0
 
         for data, labels in tqdm(self.test_data, desc="SVP test"):
+            data, labels = data.to(device), labels.to(device)
             self.model.train()
             self.model.backbone.eval()
             for _ in range(adapt_iters):
@@ -80,7 +88,7 @@ class SVPTrainer:
             self.model.eval()
             base_model.eval()
             with torch.no_grad():
-                output = base_model(data)
+                output = self.model.backbone(data + self.model.prompt)
                 predictions = output.argmax(dim=1)
                 loss = criterion(output, labels)
                 test_loss += loss.item() * labels.size(0)

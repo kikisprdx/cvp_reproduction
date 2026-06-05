@@ -7,7 +7,8 @@ poetry.lock
 notebooks/dataset.md
 notebooks/train_resnet.md
 *.parquet 
-*.csv 
+*.csv
+!results/results.csv
 __pycache__/
 datasets/
 notebooks/data/*.tar.gz

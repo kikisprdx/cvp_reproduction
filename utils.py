@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 import torchvision.transforms as T
 
+# TODO: Should be in its own utils folder
 # the augmentations specified by the paper
 ssl_transform = T.Compose(
     [

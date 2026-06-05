@@ -24,15 +24,6 @@ def train_svp(size, svp_model, optimiser, train_data, test_loader):
         svp_model, optimiser, train_data, test_loader, transforms=data_transforms, scheduler=scheduler
     )
 
-    checkpoint = "models/svp/svp_entire.pth"
-    if os.path.exists(checkpoint):
-        print(">> Loading existing SVP model, skipping training.")
-        trainer.model = torch.load(checkpoint, weights_only=False)
-        return trainer
-
-    for t in range(200):
-        print(f"Epoch {t + 1}\n", "-" * 10)
-        trainer.train(512)
     return trainer
 
 
