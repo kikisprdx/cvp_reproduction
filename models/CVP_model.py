@@ -1,21 +1,15 @@
-import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from utils import contrastive_loss
 
 
-# TODO: CVPHead should be nn.Conv2d(3, 3, kernel_size, padding=1) applied to image before backbone,
-# not a matrix mul on features. CVP.forward should apply head first then backbone -> ssl_model,
-# and remove no_grad so grads flow back through backbone to the conv for training.
 class CVPHead(nn.Module):
     def __init__(self, kernel_size):
         super().__init__()
-        self.conv = nn.Parameter(torch.rand((kernel_size, kernel_size)))
+        self.conv = nn.Conv2d(3, 3, kernel_size, padding=kernel_size // 2)
 
     def forward(self, x):
-        return x @ self.conv.T
+        return self.conv(x)
 
-#NOTE: This uses the SSL_model now; I think
+
 class CVP(nn.Module):
     def __init__(self, backbone, kernel_size, ssl_model):
         super().__init__()
@@ -28,7 +22,6 @@ class CVP(nn.Module):
             param.requires_grad = False
 
     def forward(self, x):
-        with torch.no_grad():
-            features = self.backbone.forward_features(x).mean(dim=(2, 3))
-            x_hat = self.ssl_model(features)
-        return self.head(x_hat)
+        prompted = self.head(x)
+        features = self.backbone.forward_features(prompted).mean(dim=(2, 3))
+        return self.ssl_model(features)

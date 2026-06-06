@@ -131,7 +131,6 @@ def testing_phase_prompting(base_model, ssl_model, test_loader, method, adapt_it
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # NOTE: I think all of these steps will be needed for all paths:
     base_model.reset_classifier(0)
     base_model.to(device)
     base_model.eval()

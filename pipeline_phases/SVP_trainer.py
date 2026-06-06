@@ -57,7 +57,6 @@ class SVPTrainer:
             self.optimiser.zero_grad()
 
             loop.set_postfix(loss=loss.item())
-        # TODO: Double check what optimiser and maybe scheduler is used in the paper
         if self.scheduler is not None:
             self.scheduler.step()
         torch.save(self.model.state_dict(), self.best_model_path + ".pth")
@@ -65,20 +64,22 @@ class SVPTrainer:
 
     def test_loop(self, base_model, adapt_iters=5):
         assert self.transforms is not None, "transforms required for test-time adaptation"
-        base_model.reset_classifier(10)
-        criterion = nn.CrossEntropyLoss()
         device = self.model.prompt.device
+        base_model.reset_classifier(10)
+        base_model.to(device)
+        criterion = nn.CrossEntropyLoss()
 
         correct = 0
         total = 0
         test_loss = 0
 
-        for data, labels in tqdm(self.test_data, desc="SVP test"):
+        loop = tqdm(self.test_data, desc="SVP test")
+        for data, labels in loop:
             data, labels = data.to(device), labels.to(device)
             self.model.train()
             self.model.backbone.eval()
             for _ in range(adapt_iters):
-                views = torch.cat([self.transforms(data) for _ in range(self.n_views)], dim=0)
+                views = torch.cat([self.transforms(data.cpu()) for _ in range(self.n_views)], dim=0).to(device)
                 pred = self.model(views)
                 loss = contrastive_loss(pred, data.size(0), n_views=self.n_views, temperature=self.tau)
                 loss.backward()
@@ -94,6 +95,8 @@ class SVPTrainer:
                 test_loss += loss.item() * labels.size(0)
                 correct += (predictions == labels).sum().item()
                 total += len(labels)
+
+            loop.set_postfix(loss=loss.item(), err=1 - correct / total)
 
         accuracy = correct / total
         print(f"accuracy : {accuracy}")

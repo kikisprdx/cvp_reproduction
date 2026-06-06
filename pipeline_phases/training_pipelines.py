@@ -27,9 +27,18 @@ def train_svp(size, svp_model, optimiser, train_data, test_loader):
     return trainer
 
 
-# TODO: Handle variable kernels please
 def train_cvp(ssl_model, base_model, train_data, test_loader):
-    cvp_model = CVP(base_model, 128, ssl_model)
+    color_jitter = transforms.ColorJitter(0.8, 0.8, 0.8, 0.2)
+    data_transforms = transforms.Compose(
+        [
+            transforms.RandomResizedCrop(size=32),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomApply([color_jitter], p=0.8),
+            transforms.RandomGrayscale(p=0.2),
+            transforms.GaussianBlur(kernel_size=3),
+        ]
+    )
+    cvp_model = CVP(base_model, 3, ssl_model)
     optimiser = torch.optim.Adam(cvp_model.head.parameters(), lr=1e-4)
-    trainer = CVPTrainer(cvp_model, optimiser, train_data, test_loader, 0.2)
+    trainer = CVPTrainer(cvp_model, optimiser, train_data, test_loader, tau=0.2, transforms=data_transforms, n_views=2)
     return trainer
