@@ -7,8 +7,8 @@ from tqdm import tqdm
 from adapters.FT_trainer import FTTrainer
 from adapters.PFT_trainer import PFTTrainer
 from data.data_loader import get_data_loader_CIFAR10
-from models.SVP_model import SVP
-from pipeline_phases.training_pipelines import train_cvp, train_svp
+from models.SVP_model import SVPPatch, SVPPad
+from pipeline_phases.training_pipelines import train_cvpf3, train_cvpr3, train_svp
 from utils import contrastive_loss, ssl_transform
 
 
@@ -63,7 +63,7 @@ def training_phase_SSL(base_model, ssl_model, train_loader, epochs=200):
             ssl_outputs = ssl_model(pooled_features)
 
             # calculate contrastive loss
-            loss = contrastive_loss(ssl_outputs, current_batch_size, n_views=3)
+            loss = contrastive_loss(ssl_outputs, current_batch_size, n_views=3, temperature=0.2)
 
             loss.backward()
             optimizer.step()
@@ -131,20 +131,25 @@ def testing_phase_prompting(base_model, ssl_model, test_loader, method, adapt_it
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    base_model.reset_classifier(0)
     base_model.to(device)
     base_model.eval()
-    svp_model = SVP(base_model)
-    svp_model.to(device)
-    size = 32
+    ssl_model.to(device)
     train_data = get_data_loader_CIFAR10(batch_size=512)
-    optimiser = torch.optim.Adam(svp_model.parameters(), lr=1e-4)
 
-    if method == "CVP":
-        # If trainer is returned, use it to do the test
-        trainer = train_cvp(ssl_model, base_model, train_data, test_loader)
-    elif method == "SVP":
-        trainer = train_svp(size, svp_model, optimiser, train_data, test_loader)
+    if method == "CVP-F3":
+        trainer = train_cvpf3(ssl_model, base_model, train_data, test_loader)
+    elif method == "CVP-R3":
+        trainer = train_cvpr3(ssl_model, base_model, train_data, test_loader)
+    elif method == "SVP-Patch":
+        svp_model = SVPPatch(base_model, ssl_model)
+        svp_model.to(device)
+        optimiser = torch.optim.SGD(svp_model.parameters(), lr=2/255)
+        trainer = train_svp(32, svp_model, optimiser, train_data, test_loader)
+    elif method == "SVP-Pad":
+        svp_model = SVPPad(base_model, ssl_model)
+        svp_model.to(device)
+        optimiser = torch.optim.SGD(svp_model.parameters(), lr=2/255)
+        trainer = train_svp(32, svp_model, optimiser, train_data, test_loader)
     elif method == "FT":
         trainer = FTTrainer(
             model=ssl_model, test_data=test_loader, transforms=ssl_transform, n_views=3

@@ -8,7 +8,6 @@ import torch
 
 from data.data_loader import get_data_loader_CIFAR10, get_data_loader_CIFAR10C
 from models.SSL_model import SSL_model
-from models.SVP_model import SVP
 from pipeline_phases.training_phases_manager import (testing_phase_prompting,
                                                      testing_phase_standard,
                                                      training_phase_SSL)
@@ -36,41 +35,17 @@ def load_resnet26_model():
     return model
 
 
-def setup_svp_eval():
-    batch_size = 512
-    best_model_path = "models/best_resnet26.pth"
-    model = timm.create_model("resnet26", pretrained=False, num_classes=10)
-    model.load_state_dict(torch.load(best_model_path))
-    svp_model = SVP(model)
-    svp_model.load_state_dict(torch.load(best_model_path))
-
-    # Augmentation Transforms:
-    optimiser = torch.optim.Adam(svp_model.parameters(), lr=1e-4)
-    train_data = get_data_loader_CIFAR10(batch_size=batch_size)
-    # print(train_data.dataset[0])
-    test_data = get_data_loader_CIFAR10C_generated(
-        "datasets/cifar10c_gen.parquet", batch_size=batch_size
-    )
-    trainer = SVPTrainer(svp_model, optimiser, train_data, test_data)
-
-    for t in range(1):
-        print(f"Epoch {t + 1}\n", "-" * 10)
-        trainer.test_loop()
-
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=["training", "testing"], required=True)
-    parser.add_argument("--model", choices=["baseline", "CVP", "SVP", "FT", "PFT"], default="baseline")
+    parser.add_argument("--model", choices=["baseline", "CVP-F3", "CVP-R3", "SVP-Patch", "SVP-Pad", "FT", "PFT"], default="baseline")
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     resnet26 = load_resnet26_model()
     train_loader = get_data_loader_CIFAR10(batch_size=64)  # clean data for SSL training
-    test_loader = get_data_loader_CIFAR10C(
-        batch_size=16
-    )  # corrupted data (Paper uses batch size 16 for testing it seems)
+    test_loader = get_data_loader_CIFAR10C(batch_size=64)
 
     # if arg mode == training
     # train the SSL Model (Offline Phase): phase 1
@@ -97,12 +72,12 @@ def main():
             method_acc = testing_phase_prompting(resnet26, ssl_model, test_loader, method=args.model)
             print(f"{args.model} Accuracy on Corrupted Data: {method_acc:.4f}")
             hp = {"adapt_iters": 5}
-            if args.model in ("CVP", "SVP"):
+            if args.model in ("CVP-F3", "CVP-R3", "SVP-Patch", "SVP-Pad"):
                 hp["tau"] = 0.2
-            if args.model == "CVP":
+            if args.model in ("CVP-F3", "CVP-R3"):
                 hp["lam"] = 0.5
-            if args.model in ("SVP", "FT", "PFT"):
-                hp["n_views"] = 2 if args.model == "SVP" else 3
+            if args.model in ("SVP-Patch", "SVP-Pad", "FT", "PFT"):
+                hp["n_views"] = 3
             log_result(args.model, method_acc, **hp)
 
 

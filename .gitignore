@@ -13,3 +13,5 @@ __pycache__/
 datasets/
 notebooks/data/*.tar.gz
 *.pth
+details.md
+todo.md

@@ -12,7 +12,7 @@ from data.data_utils import load_data
 
 def get_data_loader_CIFAR10C(batch_size):
     transform = v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)])
-    return DataLoader(CIFAR10C(transform=transform), batch_size=batch_size, shuffle=True)
+    return DataLoader(CIFAR10C(transform=transform), batch_size=batch_size, shuffle=False)
 
 
 def get_data_loader_CIFAR10C_generated(path, batch_size):
