@@ -82,7 +82,7 @@ class CVPTrainer:
         total = 0
         test_loss = 0
 
-        loop = tqdm(self.test_data, desc="CVP-F3 test")
+        loop = tqdm(self.test_data, desc="CVP test")
         for data, labels in loop:
             data, labels = data.to(device), labels.to(device)
             self.model.head.conv.weight.data.copy_(orig_kernel)
