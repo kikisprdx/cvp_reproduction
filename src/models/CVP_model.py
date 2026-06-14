@@ -1,24 +1,24 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class CVPHead(nn.Module):
     def __init__(self, kernel_size, init='fixed'):
         super().__init__()
-        self.conv = nn.Conv2d(3, 3, kernel_size, padding=kernel_size // 2)
+        self.kernel = nn.Parameter(torch.zeros(1, 1, kernel_size, kernel_size))
         self.lam = nn.Parameter(torch.tensor(1.0))
+        self.padding = kernel_size // 2
         with torch.no_grad():
             if init == 'fixed':
-                kernel = torch.tensor([[0., -1., 0.], [-1., 5., -1.], [0., -1., 0.]])
-                self.conv.weight.zero_()
-                for i in range(3):
-                    self.conv.weight[i, i] = kernel
+                k = torch.tensor([[0., -1., 0.], [-1., 5., -1.], [0., -1., 0.]])
+                self.kernel[0, 0] = k
             else:
-                nn.init.uniform_(self.conv.weight, -1, 1)
-            self.conv.bias.zero_()
+                nn.init.uniform_(self.kernel, -1, 1)
 
     def forward(self, x):
-        return x + self.lam * self.conv(x)
+        weight = self.kernel.expand(3, 1, *self.kernel.shape[2:])
+        return (x + self.lam * F.conv2d(x, weight, padding=self.padding, groups=3)).clamp(0, 1)
 
 
 class CVPF3(nn.Module):

@@ -7,15 +7,20 @@ import torch.nn as nn
 import timm
 import torch
 
-from data.data_loader import get_data_loader_CIFAR10, get_data_loader_CIFAR10C
-from models.SSL_model import SSL_model
-from pipeline_phases.training_phases_manager import (testing_phase_prompting,
+from src.data.data_loader import get_data_loader_CIFAR10, get_data_loader_CIFAR10C_generated
+from src.models.SSL_model import SSL_model
+from src.pipeline_phases.training_phases_manager import (testing_phase_prompting,
                                                      testing_phase_standard,
                                                      training_phase_SSL)
+from src.utils.resource_monitor import ResourceMonitor
 
 
 _RESULTS_PATH = "results/results.csv"
-_FIELDS = ["timestamp", "model", "accuracy", "adapt_iters", "tau", "lam", "n_views"]
+_FIELDS = ["timestamp", "model", "accuracy", "adapt_iters", "tau", "lam", "n_views",
+           "train_bs", "test_bs", "elapsed_h", "avg_gpu_w", "gpu_hours"]
+
+_TRAIN_BS = 64
+_TEST_BS = 16
 
 
 def log_result(model, accuracy, **kwargs):
@@ -38,7 +43,7 @@ def load_resnet26_model():
     # remove the MaxPool layer replacing  with an Identity layer
     model.maxpool = nn.Identity()
 
-    best_model_path = "models/best_resnet26.pth"
+    best_model_path = "results/best_resnet26.pth"
     model.load_state_dict(torch.load(best_model_path, map_location=torch.device("cpu")))
     return model
 
@@ -52,8 +57,8 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     resnet26 = load_resnet26_model()
-    train_loader = get_data_loader_CIFAR10(batch_size=64)  # clean data for SSL training
-    test_loader = get_data_loader_CIFAR10C(batch_size=64)
+    train_loader = get_data_loader_CIFAR10(batch_size=_TRAIN_BS)
+    test_loader = get_data_loader_CIFAR10C_generated("datasets/cifar10c_gen.parquet", batch_size=_TEST_BS)
 
     # if arg mode == training
     # train the SSL Model (Offline Phase): phase 1
@@ -67,17 +72,21 @@ def main():
         # if arg mod == testing and model == baseline
         if args.model == "baseline":
             print("----- Standard Baseline Evaluation -----")
+            monitor = ResourceMonitor().start()
             standard_acc = testing_phase_standard(resnet26, test_loader)
+            gpu = monitor.stop()
             print(f"Standard Accuracy on Corrupted Data: {standard_acc:.4f}")
-            log_result("baseline", standard_acc)
+            log_result("baseline", standard_acc, train_bs=_TRAIN_BS, test_bs=_TEST_BS, **gpu)
 
         # else do it here:
         else:
             # test-time adaptation phase: phase 3
             print(f"--- Starting Phase 3: {args.model} Prompting Evaluation ---")
             ssl_model = SSL_model(in_dim=2048, hidden=256, out_dim=128)
-            ssl_model.load_state_dict(torch.load('models/ssl_weights.pth', map_location=device))
+            ssl_model.load_state_dict(torch.load('results/ssl_weights.pth', map_location=device))
+            monitor = ResourceMonitor().start()
             method_acc = testing_phase_prompting(resnet26, ssl_model, test_loader, method=args.model)
+            gpu = monitor.stop()
             print(f"{args.model} Accuracy on Corrupted Data: {method_acc:.4f}")
             hp = {"adapt_iters": 5}
             if args.model in ("CVP-F3", "CVP-R3", "SVP-Patch", "SVP-Pad"):
@@ -86,7 +95,7 @@ def main():
                 hp["lam"] = 0.5
             if args.model in ("SVP-Patch", "SVP-Pad", "FT", "PFT"):
                 hp["n_views"] = 3
-            log_result(args.model, method_acc, **hp)
+            log_result(args.model, method_acc, **hp, train_bs=_TRAIN_BS, test_bs=_TEST_BS, **gpu)
 
 
 if __name__ == "__main__":

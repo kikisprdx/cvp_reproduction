@@ -42,31 +42,3 @@ def contrastive_loss(features, batch_size, n_views=3, temperature=0.1):
     # negative expected value
     loss = -pos_log_prob.mean()
     return loss
-
-
-def contrastive_loss_piecewise(x, y: torch.Tensor, tau):
-    # y_i_j
-    floor = (y.unsqueeze(1) == y.unsqueeze(0)).float()
-    # print(floor.size)
-    # print(x.size())
-    x = F.normalize(x, dim=1)
-    sim = x @ x.mT
-    # print("Cosine: ", sim[0])
-    # print("Cosine: ", sim.size())
-    num = sim / tau
-    # print("Tau: ", num[0])
-    # print("Tau: ", num.size())
-    num = torch.exp(num)
-    # print("Log: ", num[0])
-    # print("Log: ", num.size())
-
-    den = x @ x.mT
-    # print("Cosine: ", sim.size())
-    den = torch.exp(den)
-    den = torch.sum(den / tau, 1)
-    # print("Log: ", den.size())
-
-    # print(floor.size(), num.size(), den.size())
-    diff = floor * torch.log(num / den.unsqueeze(1))
-
-    return -(diff.sum() / floor.sum())

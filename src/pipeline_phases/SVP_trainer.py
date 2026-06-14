@@ -1,11 +1,9 @@
-import os
-
 import torch
 import torch.nn as nn
 from tqdm import tqdm
 
-from models.SVP_model import SVPPatch, SVPPad
-from utils import contrastive_loss
+from src.models.SVP_model import SVPPatch, SVPPad
+from src.utils import contrastive_loss
 
 
 class SVPTrainer:
@@ -38,7 +36,7 @@ class SVPTrainer:
         test_loss = 0
 
         loop = tqdm(self.test_data, desc="SVP test")
-        for data, labels in loop:
+        for data, labels, *_ in loop:
             data, labels = data.to(device), labels.to(device)
 
             self.model.prompt.data.zero_()
@@ -53,7 +51,9 @@ class SVPTrainer:
                 loss.backward()
                 self.optimiser.step()
                 self.optimiser.zero_grad()
-                self.model.prompt.data.clamp_(-eps_v, eps_v)
+                norm = self.model.prompt.data.norm()
+                if norm > eps_v:
+                    self.model.prompt.data.mul_(eps_v / norm)
 
             self.model.eval()
             base_model.eval()

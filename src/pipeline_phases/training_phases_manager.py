@@ -1,15 +1,14 @@
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
 
-from adapters.FT_trainer import FTTrainer
-from adapters.PFT_trainer import PFTTrainer
-from data.data_loader import get_data_loader_CIFAR10
-from models.SVP_model import SVPPatch, SVPPad
-from pipeline_phases.training_pipelines import train_cvpf3, train_cvpr3, train_svp
-from utils import contrastive_loss, ssl_transform
+from src.adapters.FT_trainer import FTTrainer
+from src.adapters.PFT_trainer import PFTTrainer
+from src.data.data_loader import get_data_loader_CIFAR10
+from src.models.SVP_model import SVPPatch, SVPPad
+from src.pipeline_phases.training_pipelines import train_cvpf3, train_cvpr3, train_svp
+from src.utils import contrastive_loss, ssl_transform
 
 
 def training_phase_SSL(base_model, ssl_model, train_loader, epochs=200):
@@ -21,12 +20,10 @@ def training_phase_SSL(base_model, ssl_model, train_loader, epochs=200):
     optimizer = optim.AdamW(ssl_model.parameters(), lr=0.001, weight_decay=1e-4)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
-    ssl_model_weights_path = "models/ssl_weights.pth"
-    ssl_full_model_path = "models/ssl_best_model.pth"
+    ssl_model_weights_path = "results/ssl_weights.pth"
+    ssl_full_model_path = "results/ssl_best_model.pth"
 
-    patience = 5  # idk
-    best_loss = np.inf
-    counter = 0
+    best_loss = float("inf")
 
     ssl_model.train()
     base_model.eval()
@@ -63,7 +60,9 @@ def training_phase_SSL(base_model, ssl_model, train_loader, epochs=200):
             ssl_outputs = ssl_model(pooled_features)
 
             # calculate contrastive loss
-            loss = contrastive_loss(ssl_outputs, current_batch_size, n_views=3, temperature=0.2)
+            loss = contrastive_loss(
+                ssl_outputs, current_batch_size, n_views=3, temperature=0.2
+            )
 
             loss.backward()
             optimizer.step()
@@ -82,30 +81,25 @@ def training_phase_SSL(base_model, ssl_model, train_loader, epochs=200):
 
         if average_loss < best_loss:
             best_loss = average_loss
-            counter = 0
             torch.save(ssl_model.state_dict(), ssl_model_weights_path)
             torch.save(ssl_model, ssl_full_model_path)
             print(">> Saved new best SSL model!")
-        else:
-            counter += 1
-
-        if counter >= patience:
-            print(f"Early stopping triggered at epoch {epoch + 1}")
-            break
 
 
 def testing_phase_standard(base_model, test_loader):
-
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    base_model.to(device)
+    base_model.eval()
     criterion = nn.CrossEntropyLoss()
 
-    base_model.eval()
     test_loss = 0
     correct = 0
     total = 0
 
     loop = tqdm(test_loader, desc="baseline test")
     with torch.no_grad():
-        for data, labels in loop:
+        for data, labels, *_ in loop:
+            data, labels = data.to(device), labels.to(device)
             output = base_model(data)  # model already outputs the raw logits
             predictions = output.argmax(
                 dim=1
@@ -143,12 +137,12 @@ def testing_phase_prompting(base_model, ssl_model, test_loader, method, adapt_it
     elif method == "SVP-Patch":
         svp_model = SVPPatch(base_model, ssl_model)
         svp_model.to(device)
-        optimiser = torch.optim.SGD(svp_model.parameters(), lr=2/255)
+        optimiser = torch.optim.SGD(svp_model.parameters(), lr=2 / 255)
         trainer = train_svp(32, svp_model, optimiser, train_data, test_loader)
     elif method == "SVP-Pad":
         svp_model = SVPPad(base_model, ssl_model)
         svp_model.to(device)
-        optimiser = torch.optim.SGD(svp_model.parameters(), lr=2/255)
+        optimiser = torch.optim.SGD(svp_model.parameters(), lr=2 / 255)
         trainer = train_svp(32, svp_model, optimiser, train_data, test_loader)
     elif method == "FT":
         trainer = FTTrainer(
