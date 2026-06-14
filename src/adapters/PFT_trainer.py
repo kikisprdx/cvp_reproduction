@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 import copy
 from tqdm import tqdm
-from utils import contrastive_loss
-from adapters.base_adapter import BaseTrainer
+from src.utils import contrastive_loss
+from src.adapters.base_adapter import BaseTrainer
 
 class PFTTrainer(BaseTrainer):
 
@@ -19,7 +19,7 @@ class PFTTrainer(BaseTrainer):
 
         loop = tqdm(self.test_data, desc="Test-Time Adaptation (PFT)")
         
-        for inputs, labels in loop:
+        for inputs, labels, *_ in loop:
             inputs, labels = inputs.to(self.device), labels.to(self.device)
             batch_size = inputs.size(0)
 
@@ -51,7 +51,7 @@ class PFTTrainer(BaseTrainer):
                 pooled_features = raw_features.mean(dim=(2, 3))
                 ssl_outputs = self.ssl_model(pooled_features)
                 
-                loss = contrastive_loss(ssl_outputs, batch_size, n_views=self.n_views)
+                loss = contrastive_loss(ssl_outputs, batch_size, n_views=self.n_views, temperature=0.2)
                 
                 loss.backward()
                 optimizer.step()

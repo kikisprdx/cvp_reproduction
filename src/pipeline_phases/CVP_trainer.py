@@ -4,8 +4,8 @@ import torch
 import torch.nn as nn
 from tqdm import tqdm
 
-from models.CVP_model import CVPF3
-from utils import contrastive_loss
+from src.models.CVP_model import CVPF3
+from src.utils import contrastive_loss
 
 
 class CVPTrainer:
@@ -29,7 +29,7 @@ class CVPTrainer:
         self.transforms = transforms
         self.n_views = n_views
 
-        self.base_path = "models/cvp/"
+        self.base_path = "results/cvp/"
         os.makedirs(self.base_path, exist_ok=True)
         self.best_model_path = os.path.join(self.base_path, "cvp")
 
@@ -40,8 +40,7 @@ class CVPTrainer:
         return contrastive_loss(self.model.ssl_model(features), data.size(0), n_views=n_views, temperature=self.tau)
 
     def online_train(self, data, num_iterations, n_views):
-        initial_kernel = self.model.head.conv.weight.data.clone()
-        initial_bias = self.model.head.conv.bias.data.clone()
+        initial_kernel = self.model.head.kernel.data.clone()
         initial_lam = self.model.head.lam.data.clone()
 
         self.model.train()
@@ -63,9 +62,8 @@ class CVPTrainer:
         with torch.no_grad():
             final_loss = self._ssl_loss(data, n_views)
 
-        if final_loss.item() >= initial_loss.item():
-            self.model.head.conv.weight.data.copy_(initial_kernel)
-            self.model.head.conv.bias.data.copy_(initial_bias)
+        if final_loss.item() > initial_loss.item():
+            self.model.head.kernel.data.copy_(initial_kernel)
             self.model.head.lam.data.copy_(initial_lam)
 
     def test_loop(self, base_model, adapt_iters=5):
@@ -74,8 +72,7 @@ class CVPTrainer:
         base_model.to(device)
         criterion = nn.CrossEntropyLoss()
 
-        orig_kernel = self.model.head.conv.weight.data.clone()
-        orig_bias = self.model.head.conv.bias.data.clone()
+        orig_kernel = self.model.head.kernel.data.clone()
         orig_lam = self.model.head.lam.data.clone()
 
         correct = 0
@@ -83,10 +80,9 @@ class CVPTrainer:
         test_loss = 0
 
         loop = tqdm(self.test_data, desc="CVP test")
-        for data, labels in loop:
+        for data, labels, *_ in loop:
             data, labels = data.to(device), labels.to(device)
-            self.model.head.conv.weight.data.copy_(orig_kernel)
-            self.model.head.conv.bias.data.copy_(orig_bias)
+            self.model.head.kernel.data.copy_(orig_kernel)
             self.model.head.lam.data.copy_(orig_lam)
             self.online_train(data, adapt_iters, self.n_views)
 

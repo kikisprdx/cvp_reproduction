@@ -3,9 +3,9 @@ import os
 import torch
 from torchvision import transforms
 
-from models.CVP_model import CVPF3, CVPR3
-from pipeline_phases.CVP_trainer import CVPTrainer
-from pipeline_phases.SVP_trainer import SVPTrainer
+from src.models.CVP_model import CVPF3, CVPR3
+from src.pipeline_phases.CVP_trainer import CVPTrainer
+from src.pipeline_phases.SVP_trainer import SVPTrainer
 
 
 def train_svp(size, svp_model, optimiser, train_data, test_loader):
