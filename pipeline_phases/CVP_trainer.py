@@ -58,7 +58,7 @@ class CVPTrainer:
             loss = self._ssl_loss(data, n_views)
             loss.backward()
             self.optimiser.step()
-            self.model.head.lam.data.clamp_(0.5, 1.0)
+            self.model.head.lam.data.clamp_(0.5, 3.0)
 
         with torch.no_grad():
             final_loss = self._ssl_loss(data, n_views)

@@ -15,3 +15,5 @@ notebooks/data/*.tar.gz
 *.pth
 details.md
 todo.md
+fixes.md
+storyline.md

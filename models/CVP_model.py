@@ -18,7 +18,7 @@ class CVPHead(nn.Module):
             self.conv.bias.zero_()
 
     def forward(self, x):
-        return x + self.lam * self.conv(x)
+        return (x + self.lam * self.conv(x)).clamp(0, 1)
 
 
 class CVPF3(nn.Module):

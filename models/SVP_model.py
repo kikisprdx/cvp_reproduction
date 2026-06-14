@@ -3,7 +3,7 @@ import torch.nn as nn
 
 
 class SVPPatch(nn.Module):
-    def __init__(self, backbone, ssl_model, patch_size=16, image_size=32):
+    def __init__(self, backbone, ssl_model, patch_size=32, image_size=32):
         super().__init__()
         self.patch_size = patch_size
         self.prompt = nn.Parameter(torch.zeros(1, 3, patch_size, patch_size))
@@ -26,7 +26,7 @@ class SVPPatch(nn.Module):
 
 
 class SVPPad(nn.Module):
-    def __init__(self, backbone, ssl_model, pad_width=4, image_size=32):
+    def __init__(self, backbone, ssl_model, pad_width=1, image_size=32):
         super().__init__()
         self.prompt = nn.Parameter(torch.zeros(1, 3, image_size, image_size))
         mask = torch.ones(1, 1, image_size, image_size)
