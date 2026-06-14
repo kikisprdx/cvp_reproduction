@@ -3,3 +3,6 @@ kiki run the following and report on the accuracies for both methods (should say
 poetry run python -m pipeline_phases.evaluate --mode testing --model FT
 
 poetry run python -m pipeline_phases.evaluate --mode testing --model PFT
+
+
+model on clean was 87% accuracy
