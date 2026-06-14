@@ -2,6 +2,7 @@ import argparse
 import csv
 import os
 from datetime import datetime
+import torch.nn as nn
 
 import timm
 import torch
@@ -30,6 +31,13 @@ def log_result(model, accuracy, **kwargs):
 
 def load_resnet26_model():
     model = timm.create_model("resnet26", pretrained=False, num_classes=10)
+
+    # replace the 7x7 stride-2 convolution with a 3x3 stride-1 convolution
+    model.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
+
+    # remove the MaxPool layer replacing  with an Identity layer
+    model.maxpool = nn.Identity()
+
     best_model_path = "models/best_resnet26.pth"
     model.load_state_dict(torch.load(best_model_path, map_location=torch.device("cpu")))
     return model
