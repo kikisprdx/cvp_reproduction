@@ -9,6 +9,8 @@ from src.utils import contrastive_loss
 
 
 class CVPTrainer:
+    """Test-time trainer for CVP: adapts the prompt head via online contrastive SSL."""
+
     def __init__(
         self,
         model: CVPF3,
@@ -28,18 +30,22 @@ class CVPTrainer:
 
         self.transforms = transforms
         self.n_views = n_views
+        self.scaler = torch.amp.GradScaler("cuda")
 
         self.base_path = "results/cvp/"
         os.makedirs(self.base_path, exist_ok=True)
         self.best_model_path = os.path.join(self.base_path, "cvp")
 
     def _ssl_loss(self, data, n_views):
-        adapted = self.model.head(data)
-        views = torch.cat([self.transforms(adapted) for _ in range(n_views)], dim=0)
-        features = self.model.backbone.forward_features(views).mean(dim=(2, 3))
-        return contrastive_loss(self.model.ssl_model(features), data.size(0), n_views=n_views, temperature=self.tau)
+        """Compute contrastive loss over n_views augmented views of data."""
+        with torch.autocast(device_type="cuda"):
+            adapted = self.model.head(data)
+            views = torch.cat([self.transforms(adapted) for _ in range(n_views)], dim=0)
+            features = self.model.backbone.forward_features(views).mean(dim=(2, 3))
+            return contrastive_loss(self.model.ssl_model(features), data.size(0), n_views=n_views, temperature=self.tau)
 
     def online_train(self, data, num_iterations, n_views):
+        """Run num_iterations of SSL-guided head adaptation; rolls back if loss increases."""
         initial_kernel = self.model.head.kernel.data.clone()
         initial_lam = self.model.head.lam.data.clone()
 
@@ -47,7 +53,7 @@ class CVPTrainer:
         self.model.backbone.eval()
         self.model.ssl_model.eval()
 
-        with torch.no_grad():
+        with torch.no_grad(), torch.autocast(device_type="cuda"):
             views = torch.cat([self.transforms(data) for _ in range(n_views)], dim=0)
             features = self.model.backbone.forward_features(views).mean(dim=(2, 3))
             initial_loss = contrastive_loss(self.model.ssl_model(features), data.size(0), n_views=n_views, temperature=self.tau)
@@ -55,8 +61,9 @@ class CVPTrainer:
         for _ in range(num_iterations):
             self.optimiser.zero_grad()
             loss = self._ssl_loss(data, n_views)
-            loss.backward()
-            self.optimiser.step()
+            self.scaler.scale(loss).backward()
+            self.scaler.step(self.optimiser)
+            self.scaler.update()
             self.model.head.lam.data.clamp_(0.5, 3.0)
 
         with torch.no_grad():
@@ -67,6 +74,7 @@ class CVPTrainer:
             self.model.head.lam.data.copy_(initial_lam)
 
     def test_loop(self, base_model, adapt_iters=5):
+        """Evaluate CVP accuracy on test_data with per-batch online prompt adaptation."""
         assert self.transforms is not None, "transforms required for test-time adaptation"
         device = next(self.model.parameters()).device
         base_model.to(device)
@@ -87,7 +95,7 @@ class CVPTrainer:
             self.online_train(data, adapt_iters, self.n_views)
 
             self.model.eval()
-            with torch.no_grad():
+            with torch.no_grad(), torch.autocast(device_type="cuda"):
                 output = self.model.backbone(self.model.head(data))
                 predictions = output.argmax(dim=1)
                 loss = criterion(output, labels)

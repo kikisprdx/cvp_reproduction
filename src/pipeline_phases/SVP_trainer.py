@@ -7,6 +7,8 @@ from src.utils import contrastive_loss
 
 
 class SVPTrainer:
+    """Test-time trainer for SVP: adapts a shared visual prompt via contrastive SSL."""
+
     def __init__(
         self,
         model,
@@ -26,6 +28,7 @@ class SVPTrainer:
         self.n_views = n_views
 
     def test_loop(self, base_model, adapt_iters=5, eps_v=8/255):
+        """Evaluate SVP accuracy on test_data with per-batch ℓ₂-constrained prompt adaptation."""
         assert self.transforms is not None, "transforms required for test-time adaptation"
         device = self.model.prompt.device
         base_model.to(device)

@@ -4,6 +4,8 @@ import torch.nn.functional as F
 
 
 class CVPHead(nn.Module):
+    """Depthwise sharpening prompt: x + λ·Conv(x, k) with a shared (1,1,ks,ks) kernel."""
+
     def __init__(self, kernel_size, init='fixed'):
         super().__init__()
         self.kernel = nn.Parameter(torch.zeros(1, 1, kernel_size, kernel_size))
@@ -18,10 +20,12 @@ class CVPHead(nn.Module):
 
     def forward(self, x):
         weight = self.kernel.expand(3, 1, *self.kernel.shape[2:])
-        return (x + self.lam * F.conv2d(x, weight, padding=self.padding, groups=3)).clamp(0, 1)
+        return x + self.lam * F.conv2d(x, weight, padding=self.padding, groups=3)
 
 
 class CVPF3(nn.Module):
+    """CVP model with a fixed (Laplacian-initialised) sharpening kernel."""
+
     def __init__(self, backbone, kernel_size, ssl_model):
         super().__init__()
         self.head = CVPHead(kernel_size, init='fixed')
@@ -39,6 +43,8 @@ class CVPF3(nn.Module):
 
 
 class CVPR3(nn.Module):
+    """CVP model with a randomly-initialised sharpening kernel."""
+
     def __init__(self, backbone, kernel_size, ssl_model):
         super().__init__()
         self.head = CVPHead(kernel_size, init='random')

@@ -24,6 +24,7 @@ _TEST_BS = 16
 
 
 def log_result(model, accuracy, **kwargs):
+    """Append a result row to the CSV, writing the header on first write."""
     row = {"timestamp": datetime.utcnow().isoformat(), "model": model, "accuracy": round(accuracy, 6)}
     row.update({k: kwargs.get(k) for k in _FIELDS[3:]})
     write_header = not os.path.exists(_RESULTS_PATH)
@@ -35,12 +36,13 @@ def log_result(model, accuracy, **kwargs):
 
 
 def load_resnet26_model():
+    """Load the pretrained ResNet-26 backbone with CIFAR-10 architecture modifications."""
     model = timm.create_model("resnet26", pretrained=False, num_classes=10)
 
-    # replace the 7x7 stride-2 convolution with a 3x3 stride-1 convolution
+    # Replace the 7x7 stride-2 convolution with a 3x3 stride-1 convolution
     model.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
 
-    # remove the MaxPool layer replacing  with an Identity layer
+    # Remove the MaxPool layer, replacing with an Identity layer
     model.maxpool = nn.Identity()
 
     best_model_path = "results/best_resnet26.pth"
@@ -49,6 +51,7 @@ def load_resnet26_model():
 
 
 def main():
+    """Entry point: dispatch to SSL training or test-time adaptation evaluation."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=["training", "testing"], required=True)
     parser.add_argument("--model", choices=["baseline", "CVP-F3", "CVP-R3", "SVP-Patch", "SVP-Pad", "FT", "PFT"], default="baseline")
@@ -60,16 +63,12 @@ def main():
     train_loader = get_data_loader_CIFAR10(batch_size=_TRAIN_BS)
     test_loader = get_data_loader_CIFAR10C_generated("datasets/cifar10c_gen.parquet", batch_size=_TEST_BS)
 
-    # if arg mode == training
-    # train the SSL Model (Offline Phase): phase 1
     if args.mode == "training":
         ssl_model = SSL_model(in_dim=2048, hidden=256, out_dim=128)
         print("----- SSL Training -----")
         training_phase_SSL(resnet26, ssl_model, train_loader, epochs=200)
 
     elif args.mode == "testing":
-        # baseline : phase 2
-        # if arg mod == testing and model == baseline
         if args.model == "baseline":
             print("----- Standard Baseline Evaluation -----")
             monitor = ResourceMonitor().start()
@@ -78,9 +77,7 @@ def main():
             print(f"Standard Accuracy on Corrupted Data: {standard_acc:.4f}")
             log_result("baseline", standard_acc, train_bs=_TRAIN_BS, test_bs=_TEST_BS, **gpu)
 
-        # else do it here:
         else:
-            # test-time adaptation phase: phase 3
             print(f"--- Starting Phase 3: {args.model} Prompting Evaluation ---")
             ssl_model = SSL_model(in_dim=2048, hidden=256, out_dim=128)
             ssl_model.load_state_dict(torch.load('results/ssl_weights.pth', map_location=device))

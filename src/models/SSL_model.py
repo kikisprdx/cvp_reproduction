@@ -2,8 +2,9 @@ import torch
 import torch.nn as nn
 
 
-
 class SSL_model(nn.Module):
+    """Two-layer MLP projection head for contrastive SSL feature embedding."""
+
     def __init__(self, in_dim, hidden, out_dim):
         super().__init__()
         self.layer1 = nn.Linear(in_dim, hidden)

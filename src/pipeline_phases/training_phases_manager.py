@@ -12,11 +12,11 @@ from src.utils import contrastive_loss, ssl_transform
 
 
 def training_phase_SSL(base_model, ssl_model, train_loader, epochs=200):
+    """Train the SSL projection head for epochs using contrastive loss."""
     device = "cuda" if torch.cuda.is_available() else "cpu"
     ssl_model = ssl_model.to(device)
     base_model = base_model.to(device)
 
-    # Optimizer and Scheduler setup as in the paper
     optimizer = optim.AdamW(ssl_model.parameters(), lr=0.001, weight_decay=1e-4)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
@@ -28,7 +28,6 @@ def training_phase_SSL(base_model, ssl_model, train_loader, epochs=200):
     ssl_model.train()
     base_model.eval()
 
-    # freeze the base model aka "backbone model"
     for param in base_model.parameters():
         param.requires_grad = False
 
@@ -43,23 +42,17 @@ def training_phase_SSL(base_model, ssl_model, train_loader, epochs=200):
 
             optimizer.zero_grad()
 
-            # 3 distinct augmented views per sample
             views = [ssl_transform(inputs) for _ in range(3)]
 
-            # stack views along the batch dimension -> shape: (3*B, C, H, W)
+            # Stack views along the batch dimension -> shape: (3*B, C, H, W)
             stacked_views = torch.cat(views, dim=0)
 
-            # extract features before the fully connected layer using timm
             with torch.no_grad():
                 raw_features = base_model.forward_features(stacked_views)
-                pooled_features = raw_features.mean(
-                    dim=(2, 3)
-                )  # global average pooling
+                pooled_features = raw_features.mean(dim=(2, 3))
 
-            # pass features through the SSL MLP model
             ssl_outputs = ssl_model(pooled_features)
 
-            # calculate contrastive loss
             loss = contrastive_loss(
                 ssl_outputs, current_batch_size, n_views=3, temperature=0.2
             )
@@ -87,6 +80,7 @@ def training_phase_SSL(base_model, ssl_model, train_loader, epochs=200):
 
 
 def testing_phase_standard(base_model, test_loader):
+    """Evaluate backbone accuracy on the corrupted test set without adaptation."""
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     base_model.to(device)
     base_model.eval()
@@ -100,10 +94,8 @@ def testing_phase_standard(base_model, test_loader):
     with torch.no_grad():
         for data, labels, *_ in loop:
             data, labels = data.to(device), labels.to(device)
-            output = base_model(data)  # model already outputs the raw logits
-            predictions = output.argmax(
-                dim=1
-            )  # this step is bascially the classifer in appendix 7.1
+            output = base_model(data)  # Model already outputs the raw logits
+            predictions = output.argmax(dim=1)
             loss = criterion(output, labels)
 
             test_loss += loss.item() * labels.size(0)
@@ -114,13 +106,11 @@ def testing_phase_standard(base_model, test_loader):
 
     accuracy = correct / total
     print(f"accuracy : {accuracy}")
-
-    # make summary structure to contain results and return them
-    results = accuracy  # placeholder for now (?)
-    return results
+    return accuracy
 
 
 def testing_phase_prompting(base_model, ssl_model, test_loader, method, adapt_iters=5):
+    """Run test-time adaptation using method and return accuracy on test_loader."""
     print(f"Preparing test-time adaptation for {method}!\n")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -155,8 +145,5 @@ def testing_phase_prompting(base_model, ssl_model, test_loader, method, adapt_it
     else:
         raise ValueError(f"Unknown method: {method}")
 
-    accuracy = trainer.test_loop(
-        base_model, adapt_iters=adapt_iters
-    )  # maybe rename function to adaptation_run or sth
-
+    accuracy = trainer.test_loop(base_model, adapt_iters=adapt_iters)
     return accuracy
